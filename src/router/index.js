@@ -38,9 +38,11 @@ const routes = [
   },
   {
     path: '/jobs/:jobId',
-    name: 'job-detail',
+    name: 'JobDetail',
     component: JobDetailView,
-    meta: { requiresAuth: true }
+    meta: {
+      activeNav: 'jobs'
+    }
   }
 ]
 

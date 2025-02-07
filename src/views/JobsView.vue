@@ -6,15 +6,16 @@
 
     <div class="jobs-tabs">
       <button 
-        class="tab-button active"
+        class="tab-button"
+        :class="{ active: currentTab === 'my-jobs' }"
         @click="currentTab = 'my-jobs'"
       >
         My Jobs
       </button>
       <button 
         class="tab-button"
+        :class="{ active: currentTab === 'all-jobs' }"
         @click="currentTab = 'all-jobs'"
-        disabled
       >
         All Jobs
       </button>
@@ -40,12 +41,12 @@
           </thead>
           <tbody>
             <tr 
-              v-for="job in myJobs" 
+              v-for="job in displayedJobs" 
               :key="job.id"
-              @click="goToJobDetail(job.job_number)"
+              @click="goToJobDetail(job.job_number || job.job_id)"
               class="job-row"
             >
-              <td>{{ job.job_number }}</td>
+              <td>{{ job.job_number || job.job_id }}</td>
               <td>{{ job.client_name }}</td>
               <td>{{ job.name }}</td>
               <td>{{ job.status }}</td>
@@ -59,7 +60,7 @@
 </template>
 
 <script>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useStore } from 'vuex'
 import axios from 'axios'
 import { useRouter } from 'vue-router'
@@ -71,8 +72,13 @@ export default {
     const router = useRouter()
     const currentTab = ref('my-jobs')
     const myJobs = ref([])
+    const allJobs = ref([])
     const loading = ref(true)
     const error = ref(null)
+
+    const displayedJobs = computed(() => {
+      return currentTab.value === 'my-jobs' ? myJobs.value : allJobs.value
+    })
 
     const fetchMyJobs = async () => {
       try {
@@ -80,25 +86,29 @@ export default {
         error.value = null
         
         const user = store.getters['auth/getUser']
-        console.log('Current user:', user)  // Debug log
-        
         if (!user?.profile?.staff_uuid) {
-          console.error('Missing user data:', {
-            user: user,
-            profile: user?.profile,
-            staff_uuid: user?.profile?.staff_uuid
-          })
           throw new Error('No staff UUID found')
         }
 
-        const url = `/api/jobs/my-jobs/${user.profile.staff_uuid}/`
-        console.log('Fetching jobs from:', url)  // Debug log
-        
-        const response = await axios.get(url)
-        console.log('Jobs response:', response.data)  // Debug log
+        const response = await axios.get(`/api/jobs/my-jobs/${user.profile.staff_uuid}/`)
         myJobs.value = response.data
       } catch (err) {
-        console.error('Error fetching jobs:', err)
+        console.error('Error fetching my jobs:', err)
+        error.value = err.message || 'Failed to load jobs'
+      } finally {
+        loading.value = false
+      }
+    }
+
+    const fetchAllJobs = async () => {
+      try {
+        loading.value = true
+        error.value = null
+        
+        const response = await axios.get('/api/jobs/all/')
+        allJobs.value = response.data
+      } catch (err) {
+        console.error('Error fetching all jobs:', err)
         error.value = err.message || 'Failed to load jobs'
       } finally {
         loading.value = false
@@ -114,11 +124,22 @@ export default {
       router.push(`/jobs/${jobId}`)
     }
 
-    onMounted(fetchMyJobs)
+    // Watch for tab changes to load appropriate data
+    watch(currentTab, async (newTab) => {
+      if (newTab === 'my-jobs' && !myJobs.value.length) {
+        await fetchMyJobs()
+      } else if (newTab === 'all-jobs' && !allJobs.value.length) {
+        await fetchAllJobs()
+      }
+    })
+
+    onMounted(async () => {
+      await fetchMyJobs() // Load My Jobs initially
+    })
 
     return {
       currentTab,
-      myJobs,
+      displayedJobs,
       loading,
       error,
       formatDate,

@@ -98,7 +98,11 @@
             required
             placeholder="Enter your work email"
             class="form-input"
+            @blur="() => checkStaffEmail(registerForm.email)"
           >
+          <div v-if="error && error.includes('staff')" class="input-error">
+            {{ error }}
+          </div>
         </div>
         <div class="form-group">
           <label for="reg-password">Password</label>
@@ -163,13 +167,14 @@ export default {
       rememberMe: false
     })
 
-    const registerForm = reactive({
+    const registerForm = ref({
       firstName: '',
       lastName: '',
       username: '',
       email: '',
       password: '',
-      confirmPassword: ''
+      confirmPassword: '',
+      staff_uuid: null  // Will store the UUID if email is valid
     })
 
     const handleLogin = async () => {
@@ -196,45 +201,70 @@ export default {
       }
     }
 
-    const handleRegister = async () => {
+    async function checkStaffEmail(email) {
+      if (!email) return false
+      
+      try {
+        const { data } = await axios.post('/auth/check-staff-email/', { email })
+        if (data.exists) {
+          registerForm.value.staff_uuid = data.staff_uuid
+          error.value = null // Clear any previous errors
+          return true
+        }
+        error.value = 'Email not found in staff records. Please contact your administrator.'
+        return false
+      } catch (err) {
+        error.value = 'Error checking staff email.'
+        return false
+      }
+    }
+
+    async function handleRegister() {
       try {
         loading.value = true
-        error.value = ''
+        error.value = null
 
-        if (registerForm.password !== registerForm.confirmPassword) {
-          throw new Error('Passwords do not match')
+        // Validate passwords match
+        if (registerForm.value.password !== registerForm.value.confirmPassword) {
+          error.value = 'Passwords do not match'
+          return
         }
 
         // Check staff email first
         const { data: staffCheck } = await axios.post('/auth/check-staff-email/', {
-          email: registerForm.email
+          email: registerForm.value.email
         })
 
         if (!staffCheck.exists) {
-          throw new Error('Email not found in staff records')
+          error.value = 'Email not found in staff records. Please contact your administrator.'
+          return
         }
 
-        // Register user
-        const { data: userData } = await axios.post('/auth/users/', {
-          username: registerForm.username,
-          email: registerForm.email,
-          password: registerForm.password
-        })
-        console.log('User created:', userData)
+        // Store staff UUID
+        registerForm.value.staff_uuid = staffCheck.staff_uuid
 
-        // Login immediately after registration with username
+        // Proceed with registration
+        await store.dispatch('auth/register', {
+          username: registerForm.value.username,
+          email: registerForm.value.email,
+          password: registerForm.value.password,
+          staff_uuid: registerForm.value.staff_uuid
+        })
+        
+        // After successful registration, log in automatically
         await store.dispatch('auth/login', {
-          username: registerForm.username,
-          password: registerForm.password
+          username: registerForm.value.username,
+          password: registerForm.value.password
         })
 
-        console.log('Registration and login successful, redirecting...')
+        // Redirect to dashboard on success
         router.push('/dashboard')
+        
       } catch (err) {
-        console.error('Registration error:', err.response?.data)
-        error.value = err.response?.data?.detail || 
-                      Object.values(err.response?.data || {})[0]?.[0] ||
-                      'Registration failed'
+        console.error('Registration error:', err)
+        error.value = err.response?.data?.email || 
+                     err.response?.data?.detail || 
+                     'Registration failed. Please try again.'
       } finally {
         loading.value = false
       }
@@ -267,7 +297,8 @@ export default {
       loading,
       error,
       handleLogin,
-      handleRegister
+      handleRegister,
+      checkStaffEmail
     }
   }
 }
@@ -430,6 +461,13 @@ export default {
         }
       }
     }
+  }
+
+  .input-error {
+    color: #d32f2f;
+    font-size: 0.8rem;
+    margin-top: 0.25rem;
+    text-align: left;
   }
 }
 </style> 

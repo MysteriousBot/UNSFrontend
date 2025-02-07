@@ -1,90 +1,16 @@
 <template>
-  <div id="app">
-    <!-- Top Navigation Bar -->
-    <nav class="top-nav">
-      <div class="nav-left">
-        <img src="@/assets/logo.png" alt="NeoMatrix" class="nav-logo" />
-        <span class="org-label">NeoMatrix, Inc.</span>
-      </div>
-      <div class="nav-center">
-        <router-link to="/dashboard">Dashboard</router-link>
-        <router-link to="/clients">Clients</router-link>
-        <router-link to="/jobs">Jobs</router-link>
-      </div>
-      <div class="nav-right">
-        <div v-if="isAuthenticated" class="user-menu">
-          <button @click="toggleDropdown" class="user-btn">
-            {{ userInitials }}
-          </button>
-          <div v-if="showDropdown" class="dropdown-menu">
-            <button @click="handleLogout" class="dropdown-item">
-              Log out
-            </button>
-          </div>
-        </div>
-      </div>
-    </nav>
-
-    <!-- Main Content Area -->
-    <router-view />
-  </div>
+  <AppLayout>
+    <router-view></router-view>
+  </AppLayout>
 </template>
 
 <script>
-import { ref, computed } from 'vue'
-import { useStore } from 'vuex'
-import { useRouter } from 'vue-router'
+import AppLayout from '@/components/AppLayout.vue'
 
 export default {
   name: 'App',
-  setup() {
-    const store = useStore()
-    const router = useRouter()
-    const showDropdown = ref(false)
-
-    const isAuthenticated = computed(() => store.getters['auth/isAuthenticated'])
-    const user = computed(() => store.getters['auth/getUser'])
-    const username = computed(() => user.value?.username || '')
-    const email = computed(() => user.value?.email || '')
-    const userInitials = computed(() => {
-      const firstName = user.value?.first_name || ''
-      const lastName = user.value?.last_name || ''
-      if (firstName && lastName) {
-        return (firstName[0] + lastName[0]).toUpperCase()
-      }
-      return user.value?.username?.[0].toUpperCase() || '?'
-    })
-
-    const toggleDropdown = () => {
-      showDropdown.value = !showDropdown.value
-    }
-
-    const handleLogout = async () => {
-      await store.dispatch('auth/logout')
-      router.push('/login')
-    }
-
-    // Close dropdown when clicking outside
-    const closeDropdown = (e) => {
-      if (!e.target.closest('.user-menu')) {
-        showDropdown.value = false
-      }
-    }
-
-    // Add/remove click listener
-    if (typeof window !== 'undefined') {
-      window.addEventListener('click', closeDropdown)
-    }
-
-    return {
-      isAuthenticated,
-      username,
-      email,
-      userInitials,
-      showDropdown,
-      toggleDropdown,
-      handleLogout
-    }
+  components: {
+    AppLayout
   }
 }
 </script>

@@ -78,6 +78,34 @@ export default {
         commit('CLEAR_AUTH')
         throw error
       }
+    },
+
+    async register({ commit }, userData) {
+      try {
+        // Register the user
+        const { data: registerData } = await axios.post('/auth/users/', {
+          username: userData.username,
+          email: userData.email,
+          password: userData.password
+        })
+
+        // After registration, immediately login
+        const { data: loginData } = await axios.post('/auth/jwt/create/', {
+          username: userData.username,
+          password: userData.password
+        })
+
+        // Set the tokens
+        commit('SET_TOKENS', {
+          access: loginData.access,
+          refresh: loginData.refresh
+        })
+
+        return registerData
+      } catch (error) {
+        console.error('Registration error:', error.response?.data)
+        throw error
+      }
     }
   }
 } 
