@@ -41,13 +41,13 @@
           </thead>
           <tbody>
             <tr 
-              v-for="job in displayedJobs" 
-              :key="job.id"
-              @click="goToJobDetail(job.job_number || job.job_id)"
+              v-for="job in processedJobs" 
+              :key="job.uuid"
+              @click="goToJobDetail(job.job_number)"
               class="job-row"
             >
-              <td>{{ job.job_number || job.job_id }}</td>
-              <td>{{ job.client_name }}</td>
+              <td>{{ job.job_number }}</td>
+              <td>{{ job.client ? job.client.name : 'Unknown Client' }}</td>
               <td>{{ job.name }}</td>
               <td>{{ job.status }}</td>
               <td>{{ formatDate(job.due_date) }}</td>
@@ -60,10 +60,10 @@
 </template>
 
 <script>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useStore } from 'vuex'
-import axios from 'axios'
 import { useRouter } from 'vue-router'
+import { mqttJobsService } from '@/services/mqtt-jobs'
 
 export default {
   name: 'JobsView',
@@ -71,49 +71,29 @@ export default {
     const store = useStore()
     const router = useRouter()
     const currentTab = ref('my-jobs')
-    const myJobs = ref([])
-    const allJobs = ref([])
     const loading = ref(true)
     const error = ref(null)
+
+    // Use the getMyJobs computed property from the service
+    const myJobs = mqttJobsService.getMyJobs()
+
+    const allJobs = mqttJobsService.getAllJobs()
 
     const displayedJobs = computed(() => {
       return currentTab.value === 'my-jobs' ? myJobs.value : allJobs.value
     })
 
-    const fetchMyJobs = async () => {
-      try {
-        loading.value = true
-        error.value = null
-        
-        const user = store.getters['auth/getUser']
-        if (!user?.profile?.staff_uuid) {
-          throw new Error('No staff UUID found')
-        }
-
-        const response = await axios.get(`/api/jobs/my-jobs/${user.profile.staff_uuid}/`)
-        myJobs.value = response.data
-      } catch (err) {
-        console.error('Error fetching my jobs:', err)
-        error.value = err.message || 'Failed to load jobs'
-      } finally {
-        loading.value = false
-      }
-    }
-
-    const fetchAllJobs = async () => {
-      try {
-        loading.value = true
-        error.value = null
-        
-        const response = await axios.get('/api/jobs/all/')
-        allJobs.value = response.data
-      } catch (err) {
-        console.error('Error fetching all jobs:', err)
-        error.value = err.message || 'Failed to load jobs'
-      } finally {
-        loading.value = false
-      }
-    }
+    // Process jobs to clean up display
+    const processedJobs = computed(() => {
+      return displayedJobs.value.map(job => ({
+        uuid: job.uuid,
+        job_number: job.job_number,
+        name: job.name,
+        client: job.client,
+        status: job.status,
+        due_date: job.due_date
+      }))
+    })
 
     const formatDate = (dateString) => {
       if (!dateString) return ''
@@ -124,26 +104,25 @@ export default {
       router.push(`/jobs/${jobId}`)
     }
 
-    // Watch for tab changes to load appropriate data
-    watch(currentTab, async (newTab) => {
-      if (newTab === 'my-jobs' && !myJobs.value.length) {
-        await fetchMyJobs()
-      } else if (newTab === 'all-jobs' && !allJobs.value.length) {
-        await fetchAllJobs()
+    onMounted(() => {
+      if (mqttJobsService.jobs.value.length === 0) {
+        mqttJobsService.connect()
       }
+      loading.value = false
     })
 
-    onMounted(async () => {
-      await fetchMyJobs() // Load My Jobs initially
+    onUnmounted(() => {
+      mqttJobsService.disconnect()
     })
 
     return {
       currentTab,
-      displayedJobs,
+      processedJobs,
       loading,
       error,
       formatDate,
-      goToJobDetail
+      goToJobDetail,
+      mqttJobsService
     }
   }
 }

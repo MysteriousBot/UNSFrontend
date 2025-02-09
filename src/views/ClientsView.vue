@@ -9,7 +9,7 @@
           :class="{ active: currentTab === 'clients' }"
           @click="currentTab = 'clients'"
         >
-          Clients <span class="count">{{ clients.length }}</span>
+          Clients <span class="count">{{ mqttService.clients.value.length }}</span>
         </button>
         <button 
           class="tab-button"
@@ -71,24 +71,24 @@
             <th @click="sort('name')">Name</th>
             <th @click="sort('status')">Status</th>
             <th @click="sort('phone')">Phone</th>
-            <th @click="sort('address')">Default Address</th>
+            <th @click="sort('address.street')">Default Address</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="client in filteredClients" :key="client.uuid">
             <td>
               <button class="star-btn" @click="toggleArchive(client)">
-                <i class="fas" :class="client.status === 'Archived' ? 'fa-archive' : 'fa-check-circle'"></i>
+                <i class="fas" :class="client.status === 'archived' ? 'fa-archive' : 'fa-check-circle'"></i>
               </button>
             </td>
             <td>{{ client.name }}</td>
             <td>
-              <span class="status-badge" :class="client.status.toLowerCase()">
+              <span class="status-badge" :class="client.status">
                 {{ client.status }}
               </span>
             </td>
             <td>{{ client.phone || '-' }}</td>
-            <td>{{ client.address || '-' }}</td>
+            <td>{{ client.address?.street || '-' }}</td>
           </tr>
         </tbody>
       </table>
@@ -97,55 +97,39 @@
 </template>
 
 <script>
-import { ref, computed, onMounted } from 'vue'
-import axios from 'axios'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { mqttService } from '@/services/mqtt'
 
 export default {
   name: 'ClientsView',
   setup() {
-    const clients = ref([])
-    const loading = ref(true)
-    const error = ref(null)
     const currentTab = ref('clients')
     const viewType = ref('active')
     const searchQuery = ref('')
     const sortField = ref('name')
     const sortDirection = ref('asc')
 
-    const fetchClients = async () => {
-      try {
-        loading.value = true
-        const { data } = await axios.get('/api/clients/')
-        clients.value = data
-      } catch (err) {
-        error.value = 'Failed to load clients'
-        console.error('Error:', err)
-      } finally {
-        loading.value = false
-      }
-    }
-
     const filteredClients = computed(() => {
-      return clients.value
+      return mqttService.clients.value
         .filter(client => {
-          if (viewType.value === 'active' && client.status !== 'Active') return false
-          if (viewType.value === 'archived' && client.status !== 'Archived') return false
+          if (viewType.value === 'active' && client.status !== 'active') return false
+          if (viewType.value === 'archived' && client.status !== 'archived') return false
           
           if (searchQuery.value) {
             const query = searchQuery.value.toLowerCase()
             return client.name.toLowerCase().includes(query) ||
-                   client.address?.toLowerCase().includes(query) ||
+                   client.address?.street?.toLowerCase().includes(query) ||
                    client.phone?.toLowerCase().includes(query) ||
                    client.email?.toLowerCase().includes(query)
           }
           return true
         })
         .sort((a, b) => {
-          const aVal = a[sortField.value] || ''
-          const bVal = b[sortField.value] || ''
+          const aVal = a[sortField.value]
+          const bVal = b[sortField.value]
           return sortDirection.value === 'asc' 
-            ? aVal.localeCompare(bVal)
-            : bVal.localeCompare(aVal)
+            ? (aVal > bVal ? 1 : -1)
+            : (aVal < bVal ? 1 : -1)
         })
     })
 
@@ -167,18 +151,34 @@ export default {
       }
     }
 
-    onMounted(fetchClients)
+    const updateClient = async (client, updates) => {
+      try {
+        await mqttService.updateClient(client.uuid, updates)
+      } catch (err) {
+        console.error('Error updating client:', err)
+        // You might want to add error handling UI here
+      }
+    }
+
+    onMounted(() => {
+      if (mqttService.clients.value.length === 0) {
+        mqttService.connect()
+      }
+    })
+
+    onUnmounted(() => {
+      mqttService.disconnect()
+    })
 
     return {
-      clients,
-      loading,
-      error,
       currentTab,
       viewType,
       searchQuery,
       filteredClients,
       sort,
-      toggleArchive
+      toggleArchive,
+      mqttService,
+      updateClient
     }
   }
 }
