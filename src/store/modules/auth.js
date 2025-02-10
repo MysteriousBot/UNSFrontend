@@ -5,12 +5,15 @@ export default {
   
   state: {
     tokens: JSON.parse(localStorage.getItem('tokens')) || null,
-    user: null
+    user: null,
+    loading: false,
+    error: null
   },
 
   getters: {
     isAuthenticated: state => !!state.tokens,
-    getUser: state => state.user
+    getUser: state => state.user,
+    isAdmin: state => state.user?.profile?.role === 'ADMIN'
   },
 
   mutations: {
@@ -105,6 +108,24 @@ export default {
       } catch (error) {
         console.error('Registration error:', error.response?.data)
         throw error
+      }
+    },
+
+    async initializeAuth({ commit, state }) {
+      if (state.tokens) {
+        try {
+          const response = await axios.get('/auth/users/me/')
+          commit('SET_USER', response.data)
+          return response.data
+        } catch (error) {
+          console.error('Failed to load user profile:', error)
+          // If we get a 401, clear the tokens and user
+          if (error.response?.status === 401) {
+            commit('CLEAR_AUTH')
+            localStorage.removeItem('tokens')
+          }
+          throw error
+        }
       }
     }
   }

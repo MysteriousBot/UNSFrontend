@@ -6,11 +6,35 @@
 
 <script>
 import AppLayout from '@/components/AppLayout.vue'
+import { useStore } from 'vuex'
+import { onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import axios from '@/utils/axios'  // Import configured axios
 
 export default {
   name: 'App',
   components: {
     AppLayout
+  },
+  setup() {
+    const store = useStore()
+    const router = useRouter()
+
+    onMounted(async () => {
+      // Set document title
+      document.title = 'Timekeeper'
+      
+      try {
+        // Try to initialize auth state
+        await store.dispatch('auth/initializeAuth')
+      } catch (error) {
+        console.error('Auth initialization failed:', error)
+        // If initialization fails, redirect to login
+        if (router.currentRoute.value.path !== '/login') {
+          router.push('/login')
+        }
+      }
+    })
   }
 }
 </script>

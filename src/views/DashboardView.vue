@@ -5,6 +5,7 @@
         <h1>Dashboard</h1>
         <div class="header-actions">
           <button 
+            v-if="!adminView"
             class="btn-timesheet"
             @click="goToTimesheet"
           >
@@ -151,7 +152,17 @@ import { useRouter } from 'vue-router'
 
 export default {
   name: 'DashboardView',
-  setup() {
+  props: {
+    staffUuid: {
+      type: String,
+      default: null
+    },
+    adminView: {
+      type: Boolean,
+      default: false
+    }
+  },
+  setup(props) {
     const store = useStore()
     const router = useRouter()
     const weekStart = ref(getWeekStart())
@@ -163,10 +174,9 @@ export default {
     const selectedCell = ref(null)
     const selectedTask = ref(null)
 
-    const staffUuid = computed(() => {
-      const user = store.state.auth.user
-      return user?.profile?.staff_uuid || user?.staff_uuid
-    })
+    const effectiveStaffUuid = computed(() => 
+      props.adminView ? props.staffUuid : store.getters['auth/getUser']?.profile?.staff_uuid
+    )
 
     const totalHours = computed(() => {
       if (!hoursData.value.daily_hours) return 0
@@ -273,7 +283,7 @@ export default {
 
     async function fetchWeeklyHours() {
       try {
-        if (!staffUuid.value) {
+        if (!effectiveStaffUuid.value) {
           error.value = 'Staff ID not found. Please try logging in again.'
           return
         }
@@ -282,7 +292,7 @@ export default {
         error.value = null
         
         const formattedDate = weekStart.value.toISOString().split('T')[0]
-        const { data } = await axios.get(`/api/staff/${staffUuid.value}/weekly-hours/${formattedDate}/`)
+        const { data } = await axios.get(`/api/staff/${effectiveStaffUuid.value}/weekly-hours/${formattedDate}/`)
         hoursData.value = data
       } catch (err) {
         console.error('Error fetching weekly hours:', err.response || err)
@@ -325,7 +335,7 @@ export default {
       weekStart.value = getWeekStart()
       weekEnd.value = getWeekEnd(weekStart.value)
       
-      if (staffUuid.value) {
+      if (effectiveStaffUuid.value) {
         fetchWeeklyHours()
       }
       

@@ -2,10 +2,10 @@
   <div class="login-page">
     <div class="login-card">
       <div class="logo-section">
-        <img src="@/assets/logo.png" alt="NeoMatrix Logo" class="logo">
+        <img src="@/assets/logo-neomatrix_cut.png" alt="NeoMatrix Logo" class="logo">
       </div>
       
-      <h1>{{ isRegistering ? 'Create Account' : 'Log in to NeoMatrix' }}<br>Timetracking Portal</h1>
+      <h1>{{ isRegistering ? 'Create Timekeeper Account' : 'Timekeeper Login' }}<br></h1>
 
       <!-- Login Form -->
       <form v-if="!isRegistering" @submit.prevent="handleLogin">
@@ -137,11 +137,6 @@
         </div>
       </form>
 
-      <div class="footer-links">
-        <a href="#">Help</a>
-        <a href="#">Privacy</a>
-        <a href="#">Terms</a>
-      </div>
     </div>
   </div>
 </template>

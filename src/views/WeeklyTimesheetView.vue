@@ -208,14 +208,54 @@
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { useStore } from 'vuex'
 import axios from 'axios'
+import { formatUuid } from '@/utils/uuidHelper'
 
 export default {
   name: 'WeeklyTimesheetView',
-  setup() {
+  props: {
+    staffUuid: {
+      type: String,
+      default: null
+    },
+    adminView: {
+      type: Boolean,
+      default: false
+    }
+  },
+  setup(props) {
     const store = useStore()
-    const staffUuid = computed(() => store.getters['auth/getUser']?.profile?.staff_uuid)
-    const staffName = computed(() => `${store.getters['auth/getUser']?.first_name} ${store.getters['auth/getUser']?.last_name}`)
     
+    // Get the effective staff UUID based on whether we're in admin view or not
+    const effectiveStaffUuid = computed(() => {
+      if (props.adminView && props.staffUuid) {
+        return formatUuid(props.staffUuid)
+      }
+      return formatUuid(store.getters['auth/getUser']?.profile?.staff_uuid)
+    })
+
+    // Get the staff name - for regular view show logged in user, for admin view show selected staff
+    const staffName = computed(() => {
+      if (props.adminView) {
+        return staff.value?.name || 'Loading...'
+      }
+      return `${store.getters['auth/getUser']?.first_name} ${store.getters['auth/getUser']?.last_name}`
+    })
+
+    const staff = ref(null)
+    
+    // Add function to fetch staff details when in admin view
+    const fetchStaffDetails = async () => {
+      if (!props.adminView) return
+      
+      try {
+        const { data } = await axios.get(`/api/admin/staff/${props.staffUuid}/`)
+        staff.value = data
+      } catch (err) {
+        console.error('Error fetching staff details:', err)
+        error.value = 'Failed to load staff details'
+      }
+    }
+
     const weekStart = ref(getWeekStart(new Date()))
     const weekEnd = ref(getEndOfWeek(new Date()))
     const taskHours = ref([])
@@ -262,7 +302,7 @@ export default {
         error.value = null
         
         const formattedDate = weekStart.value.toISOString().split('T')[0]
-        const { data } = await axios.get(`/api/staff/${staffUuid.value}/weekly-hours/${formattedDate}/`)
+        const { data } = await axios.get(`/api/staff/${effectiveStaffUuid.value}/weekly-hours/${formattedDate}/`)
         
         // Transform the data to match our table structure
         taskHours.value = Object.values(data.task_hours || {}).map(task => ({
@@ -270,7 +310,7 @@ export default {
           daily_hours: task.daily_hours.map(day => ({
             ...day,
             hours: day.hours || '',
-            notes: day.notes || []
+            notes: typeof day.notes === 'string' ? day.notes : (Array.isArray(day.notes) ? day.notes.join('\n') : '')
           }))
         }))
       } catch (err) {
@@ -283,8 +323,8 @@ export default {
 
     const fetchMyJobs = async () => {
       try {
-        console.log('Fetching jobs for staff:', staffUuid.value)
-        const { data } = await axios.get(`/api/jobs/my-jobs/${staffUuid.value}/`)
+        console.log('Fetching jobs for staff:', effectiveStaffUuid.value)
+        const { data } = await axios.get(`/api/jobs/my-jobs/${effectiveStaffUuid.value}/`)
         console.log('Received jobs:', data)
         availableJobs.value = data
       } catch (err) {
@@ -294,28 +334,38 @@ export default {
     }
 
     const fetchTasksForJob = async (jobId) => {
-        try {
-            console.log('Fetching tasks for job:', jobId);
-            const { data } = await axios.get(`/api/jobs/${jobId}/tasks/`);
-            console.log('Fetched tasks:', data);
-            availableTasks.value = data;
-        } catch (err) {
-            console.error('Error fetching tasks:', err);
-            error.value = 'Failed to load tasks';
-        }
-    };
+      try {
+        console.log('Fetching tasks for job:', jobId)
+        const { data } = await axios.get(`/api/jobs/${jobId}/tasks/`)
+        console.log('All tasks for job:', data)
+        console.log('Current timesheet tasks:', taskHours.value)
+        availableTasks.value = data
+      } catch (err) {
+        console.error('Error fetching tasks:', err)
+        error.value = 'Failed to load tasks'
+      }
+    }
 
     // Dialog functions
+    const resetDialogState = () => {
+      selectedJob.value = null
+      selectedTask.value = null
+      jobSearch.value = ''
+      taskSearch.value = ''
+      showJobDropdown.value = false
+      showTaskDropdown.value = false
+      availableTasks.value = [] // Clear available tasks
+    }
+
     const openTaskDialog = () => {
       console.log('Opening task dialog')
+      resetDialogState()
       showTaskDialog.value = true
     }
 
     const closeTaskDialog = () => {
       showTaskDialog.value = false
-      selectedJobId.value = ''
-      selectedTaskId.value = ''
-      availableTasks.value = []
+      resetDialogState()
     }
 
     const handleJobChange = () => {
@@ -331,49 +381,49 @@ export default {
     }
 
     const addTask = async () => {
-        if (!selectedJob || !selectedTask) {
-            console.error('No job or task selected');
-            return;
-        }
-        
-        console.log('Adding task:', {
-            selectedJob: selectedJob.value,
-            selectedTask: selectedTask.value
-        });
+      if (!selectedJob.value || !selectedTask.value) {
+        console.error('No job or task selected')
+        return
+      }
+      
+      console.log('Adding task:', {
+        selectedJob: selectedJob.value,
+        selectedTask: selectedTask.value
+      })
 
-        // Create a new task entry
-        const newTask = {
-            job_id: selectedJob.value.job_number,
-            job_name: selectedJob.value.name,
-            task_uuid: selectedTask.value.uuid,
-            task_name: selectedTask.value.name,
-            client_name: selectedJob.value.client_name,
-            daily_hours: weekDays.value.map(day => ({
-                date: day.date,
-                hours: '',
-                notes: []
-            }))
-        };
+      // Create a new task entry
+      const newTask = {
+        job_id: selectedJob.value.job_number,
+        job_name: selectedJob.value.name,
+        task_uuid: selectedTask.value.uuid,
+        task_name: selectedTask.value.name,
+        client_name: selectedJob.value.client_name,
+        daily_hours: weekDays.value.map(day => ({
+          date: day.date,
+          hours: '',
+          notes: ''
+        }))
+      }
 
-        console.log('New task entry:', newTask);
+      console.log('New task entry:', newTask)
 
-        // Check if task already exists
-        const taskExists = taskHours.value.some(
-            task => task.job_id === newTask.job_id && task.task_uuid === newTask.task_uuid
-        );
+      // Check if task already exists
+      const taskExists = taskHours.value.some(
+        task => task.job_id === newTask.job_id && task.task_uuid === newTask.task_uuid
+      )
 
-        if (taskExists) {
-            error.value = 'This task has already been added';
-            return;
-        }
+      if (taskExists) {
+        error.value = 'This task has already been added'
+        return
+      }
 
-        // Add the new task to the timesheet
-        taskHours.value = [...taskHours.value, newTask];
-        console.log('Updated taskHours:', taskHours.value);
+      // Add the new task to the timesheet
+      taskHours.value = [...taskHours.value, newTask]
+      console.log('Updated taskHours:', taskHours.value)
 
-        // Close the dialog and reset selections
-        closeTaskDialog();
-    };
+      // After successful add, close dialog and reset state
+      closeTaskDialog()
+    }
 
     // Utility functions
     const calculateTaskTotal = (task) => {
@@ -433,26 +483,47 @@ export default {
     }
 
     const selectJob = async (job) => {
-        console.log('Selected job:', job);
-        selectedJob.value = job;
-        showJobDropdown.value = false;
-        
-        // Fetch tasks for the selected job
-        await fetchTasksForJob(job.job_number);
+      console.log('Selected job:', job);
+      selectedJob.value = job;
+      showJobDropdown.value = false;
+      
+      // Fetch tasks for the selected job
+      await fetchTasksForJob(job.job_number);
     };
 
     const selectTask = (task) => {
-        console.log('Selected task:', task);
-        selectedTask.value = task;
-        showTaskDropdown.value = false;
+      console.log('Selected task:', task);
+      selectedTask.value = task;
+      showTaskDropdown.value = false;
     };
 
     const filteredTasks = computed(() => {
-      if (!taskSearch.value) return availableTasks.value
-      const search = taskSearch.value.toLowerCase()
-      return availableTasks.value.filter(task => 
-        task.name.toLowerCase().includes(search)
-      )
+      if (!availableTasks.value) return []
+      
+      // Get list of currently selected task/job combinations
+      const selectedCombos = taskHours.value.map(task => ({
+        job_id: task.job_id,
+        task_uuid: task.task_uuid
+      }))
+      
+      // Filter out tasks that are already in the timesheet for this job
+      let tasks = availableTasks.value.filter(task => {
+        return !selectedCombos.some(combo => 
+          combo.job_id === selectedJob.value?.job_number && 
+          combo.task_uuid === task.uuid
+        )
+      })
+      
+      // Apply search filter if there's a search term
+      if (taskSearch.value) {
+        const search = taskSearch.value.toLowerCase()
+        tasks = tasks.filter(task => 
+          task.name.toLowerCase().includes(search)
+        )
+      }
+      
+      console.log('Available tasks after filtering:', tasks)
+      return tasks
     })
 
     const toggleNotes = (task, date) => {
@@ -463,7 +534,7 @@ export default {
       } else {
         selectedTask.value = task
         const dayHours = task.daily_hours.find(h => h.date === date)
-        currentNotes.value = dayHours?.notes?.join('\n') || ''
+        currentNotes.value = dayHours?.notes || ''
       }
     }
 
@@ -471,12 +542,12 @@ export default {
       if (selectedTask.value) {
         const dayHours = selectedTask.value.daily_hours.find(h => h.date === selectedDate.value)
         if (dayHours) {
-          dayHours.notes = currentNotes.value ? [currentNotes.value] : []
+          dayHours.notes = currentNotes.value || ''
         } else {
           selectedTask.value.daily_hours.push({
             date: selectedDate.value,
             hours: 0,
-            notes: currentNotes.value ? [currentNotes.value] : []
+            notes: currentNotes.value || ''
           })
         }
       }
@@ -485,70 +556,65 @@ export default {
     // Add the submit function
     const submitTimesheet = async () => {
       try {
-        loading.value = true;
+        loading.value = true
         
-        // Format the UUID with hyphens
-        const formattedUuid = staffUuid.value?.replace(/(.{8})(.{4})(.{4})(.{4})(.{12})/, '$1-$2-$3-$4-$5');
-        
-        // Filter tasks to only include those with hours > 0
-        const submittableEntries = taskHours.value.flatMap(task => {
-            const entriesWithHours = task.daily_hours.filter(day => 
-                day.hours && parseFloat(day.hours) > 0
-            );
-            
-            if (entriesWithHours.length === 0) return [];
-            
-            return [{
-                task_uuid: task.task_uuid,
-                job_id: task.job_id,
-                entries: entriesWithHours.map(day => ({
-                    date: day.date,
-                    hours: parseFloat(day.hours),
-                    notes: day.notes
-                }))
-            }];
-        });
-
-        if (submittableEntries.length === 0) {
-            error.value = 'No hours entered to submit';
-            return;
+        if (!effectiveStaffUuid.value) {
+          throw new Error('No staff UUID available')
         }
 
-        // Log the data being sent
+        const submittableEntries = taskHours.value.flatMap(task => {
+          const entriesWithHours = task.daily_hours.filter(day => 
+            day.hours && parseFloat(day.hours) > 0
+          )
+          
+          if (entriesWithHours.length === 0) return []
+          
+          return [{
+            task_uuid: task.task_uuid,
+            job_id: task.job_id,
+            entries: entriesWithHours.map(day => ({
+              date: day.date,
+              hours: parseFloat(day.hours),
+              notes: day.notes || ''
+            }))
+          }]
+        })
+
+        if (submittableEntries.length === 0) {
+          error.value = 'No hours entered to submit'
+          return
+        }
+
         console.log('Submitting timesheet data:', {
-            staff_uuid: formattedUuid,
-            entries: submittableEntries
-        });
+          staff_uuid: effectiveStaffUuid.value,
+          entries: submittableEntries,
+          is_admin: props.adminView
+        })
 
-        // Log each task UUID being submitted
-        submittableEntries.forEach(entry => {
-            console.log('Task UUID:', entry.task_uuid);
-            console.log('Job ID:', entry.job_id);
-        });
+        await axios.post(`/api/staff/${effectiveStaffUuid.value}/weekly-hours/`, {
+          entries: submittableEntries,
+          is_admin: props.adminView
+        })
 
-        await axios.post(`/api/staff/${formattedUuid}/weekly-hours/`, {
-            entries: submittableEntries
-        });
-
-        // Show success message
         store.dispatch('showMessage', {
-            message: 'Timesheet submitted successfully',
-            type: 'success'
-        });
+          message: 'Timesheet submitted successfully',
+          type: 'success'
+        })
 
-        // Refresh the data
-        await fetchWeeklyHours();
+        await fetchWeeklyHours()
       } catch (err) {
-        console.error('Error submitting timesheet:', err);
-        console.error('Error details:', err.response?.data);
-        error.value = 'Failed to submit timesheet';
+        console.error('Error submitting timesheet:', err)
+        error.value = err.response?.data?.error || 'Failed to submit timesheet'
       } finally {
-        loading.value = false;
+        loading.value = false
       }
-    };
+    }
 
     onMounted(async () => {
-      if (staffUuid.value) {
+      if (props.adminView) {
+        await fetchStaffDetails()
+      }
+      if (effectiveStaffUuid.value) {
         try {
           loading.value = true
           await Promise.all([
@@ -1108,6 +1174,18 @@ function getEndOfWeek(date) {
         }
       }
     }
+  }
+}
+
+.select-dropdown {
+  &.empty {
+    padding: 1rem;
+    text-align: center;
+    color: #666;
+  }
+
+  .no-tasks {
+    font-size: 0.9rem;
   }
 }
 </style> 

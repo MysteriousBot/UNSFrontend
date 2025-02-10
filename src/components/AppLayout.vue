@@ -25,6 +25,13 @@
           >
             Jobs
           </router-link>
+          <router-link 
+            v-if="isAdmin"
+            to="/admin"
+            :class="{ active: $route.path.startsWith('/admin') }"
+          >
+            Admin
+          </router-link>
         </div>
         <div class="nav-right">
           <div v-if="isAuthenticated" class="user-menu">
@@ -73,6 +80,7 @@ export default {
     })
 
     const isLoginPage = computed(() => route.path === '/login')
+    const isAdmin = computed(() => store.getters['auth/isAdmin'])
 
     const toggleDropdown = () => {
       showDropdown.value = !showDropdown.value
@@ -101,7 +109,8 @@ export default {
       showDropdown,
       toggleDropdown,
       handleLogout,
-      isLoginPage
+      isLoginPage,
+      isAdmin
     }
   }
 }
