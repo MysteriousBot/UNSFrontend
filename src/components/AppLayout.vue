@@ -1,6 +1,6 @@
 <template>
   <div class="app-layout">
-    <nav class="navbar">
+    <nav v-if="!isLoginPage" class="navbar">
       <div class="container">
         <div class="nav-left">
           <img src="@/assets/logo.png" alt="NeoMatrix" class="logo" />
@@ -40,8 +40,8 @@
         </div>
       </div>
     </nav>
-    <main class="main-content">
-      <div class="container">
+    <main :class="{ 'login-page': isLoginPage, 'main-content': !isLoginPage }">
+      <div :class="{ container: !isLoginPage }">
         <slot></slot>
       </div>
     </main>
@@ -51,13 +51,14 @@
 <script>
 import { ref, computed } from 'vue'
 import { useStore } from 'vuex'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 
 export default {
   name: 'AppLayout',
   setup() {
     const store = useStore()
     const router = useRouter()
+    const route = useRoute()
     const showDropdown = ref(false)
 
     const isAuthenticated = computed(() => store.getters['auth/isAuthenticated'])
@@ -70,6 +71,8 @@ export default {
       }
       return user.value?.username?.[0].toUpperCase() || '?'
     })
+
+    const isLoginPage = computed(() => route.path === '/login')
 
     const toggleDropdown = () => {
       showDropdown.value = !showDropdown.value
@@ -97,7 +100,8 @@ export default {
       userInitials,
       showDropdown,
       toggleDropdown,
-      handleLogout
+      handleLogout,
+      isLoginPage
     }
   }
 }
@@ -217,6 +221,11 @@ export default {
         }
       }
     }
+  }
+
+  .login-page {
+    padding: 0;
+    background-color: transparent;
   }
 
   .main-content {

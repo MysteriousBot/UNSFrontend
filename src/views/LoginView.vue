@@ -1,5 +1,5 @@
 <template>
-  <div class="login">
+  <div class="login-page">
     <div class="login-card">
       <div class="logo-section">
         <img src="@/assets/logo.png" alt="NeoMatrix Logo" class="logo">
@@ -305,169 +305,169 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-.login {
+.login-page {
   min-height: 100vh;
+  width: 100%;
   display: flex;
-  align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #43a047 0%, #1b5e20 100%);
-  padding: 1rem;
+  align-items: center;
+  background-color: #2E7D32;
+  padding: 2rem;
+}
 
-  .login-card {
-    background: white;
-    padding: 2.5rem;
-    border-radius: 8px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    width: 100%;
-    max-width: 400px;
-    text-align: center;
+.login-card {
+  background: white;
+  border-radius: 8px;
+  padding: 2rem;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 
-    .logo-section {
-      margin-bottom: 1.5rem;
-      
-      .logo {
-        height: 40px;
-      }
+  .logo-section {
+    margin-bottom: 1.5rem;
+    
+    .logo {
+      height: 40px;
     }
+  }
 
-    h1 {
-      font-size: 1.5rem;
+  h1 {
+    font-size: 1.5rem;
+    color: #333;
+    margin-bottom: 2rem;
+    line-height: 1.4;
+    font-weight: 500;
+  }
+
+  .form-group {
+    margin-bottom: 1.5rem;
+    text-align: left;
+
+    label {
+      display: block;
+      margin-bottom: 0.6rem;
       color: #333;
-      margin-bottom: 2rem;
-      line-height: 1.4;
+      font-size: 0.9rem;
       font-weight: 500;
-    }
 
-    .form-group {
-      margin-bottom: 1.5rem;
-      text-align: left;
-
-      label {
-        display: block;
-        margin-bottom: 0.6rem;
-        color: #333;
-        font-size: 0.9rem;
-        font-weight: 500;
-
-        &::after {
-          content: ':';
-          margin-left: 2px;
-        }
-      }
-
-      .form-input {
-        width: 100%;
-        padding: 0.75rem 1rem;
-        background-color: #f8f9fa;
-        border: 1px solid #e0e0e0;
-        border-radius: 4px;
-        font-size: 1rem;
-        transition: all 0.2s;
-
-        &:focus {
-          outline: none;
-          border-color: #43a047;
-          background-color: #fff;
-        }
+      &::after {
+        content: ':';
+        margin-left: 2px;
       }
     }
 
-    .form-options {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 1.5rem;
-
-      .remember-me {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        color: #666;
-        cursor: pointer;
-
-        input[type="checkbox"] {
-          accent-color: #43a047;
-        }
-      }
-
-      .forgot-password {
-        color: #43a047;
-        text-decoration: none;
-        font-size: 0.9rem;
-
-        &:hover {
-          text-decoration: underline;
-        }
-      }
-    }
-
-    .submit-button {
+    .form-input {
       width: 100%;
-      padding: 0.75rem;
-      background: #43a047;
-      color: white;
-      border: none;
+      padding: 0.75rem 1rem;
+      background-color: #f8f9fa;
+      border: 1px solid #e0e0e0;
       border-radius: 4px;
       font-size: 1rem;
-      font-weight: 500;
+      transition: all 0.2s;
+
+      &:focus {
+        outline: none;
+        border-color: #43a047;
+        background-color: #fff;
+      }
+    }
+  }
+
+  .form-options {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+
+    .remember-me {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: #666;
       cursor: pointer;
-      transition: background-color 0.2s;
+
+      input[type="checkbox"] {
+        accent-color: #43a047;
+      }
+    }
+
+    .forgot-password {
+      color: #43a047;
+      text-decoration: none;
+      font-size: 0.9rem;
 
       &:hover {
-        background: #2E7D32;
-      }
-
-      &:disabled {
-        background: #9e9e9e;
-        cursor: not-allowed;
-      }
-    }
-
-    .toggle-text {
-      margin-top: 1rem;
-      color: #666;
-      font-size: 0.9rem;
-
-      a {
-        color: #43a047;
-        text-decoration: none;
-        font-weight: 500;
-
-        &:hover {
-          text-decoration: underline;
-        }
-      }
-    }
-
-    .error-message {
-      margin-top: 1rem;
-      color: #d32f2f;
-      font-size: 0.9rem;
-    }
-
-    .footer-links {
-      margin-top: 2rem;
-      display: flex;
-      justify-content: center;
-      gap: 1.5rem;
-
-      a {
-        color: #666;
-        text-decoration: none;
-        font-size: 0.9rem;
-
-        &:hover {
-          text-decoration: underline;
-        }
+        text-decoration: underline;
       }
     }
   }
 
-  .input-error {
+  .submit-button {
+    width: 100%;
+    padding: 0.75rem;
+    background: #43a047;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+
+    &:hover {
+      background: #2E7D32;
+    }
+
+    &:disabled {
+      background: #9e9e9e;
+      cursor: not-allowed;
+    }
+  }
+
+  .toggle-text {
+    margin-top: 1rem;
+    color: #666;
+    font-size: 0.9rem;
+
+    a {
+      color: #43a047;
+      text-decoration: none;
+      font-weight: 500;
+
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+  }
+
+  .error-message {
+    margin-top: 1rem;
     color: #d32f2f;
-    font-size: 0.8rem;
-    margin-top: 0.25rem;
-    text-align: left;
+    font-size: 0.9rem;
   }
+
+  .footer-links {
+    margin-top: 2rem;
+    display: flex;
+    justify-content: center;
+    gap: 1.5rem;
+
+    a {
+      color: #666;
+      text-decoration: none;
+      font-size: 0.9rem;
+
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+  }
+}
+
+.input-error {
+  color: #d32f2f;
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
+  text-align: left;
 }
 </style> 

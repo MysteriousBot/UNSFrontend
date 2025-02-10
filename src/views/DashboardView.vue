@@ -5,18 +5,11 @@
         <h1>Dashboard</h1>
         <div class="header-actions">
           <button 
-            class="btn-primary"
-            :class="{ active: viewMode === 'summary' }"
-            @click="viewMode = 'summary'"
+            class="btn-timesheet"
+            @click="goToTimesheet"
           >
-            Summary
-          </button>
-          <button 
-            class="btn-configure"
-            :class="{ active: viewMode === 'jobs' }"
-            @click="viewMode = 'jobs'"
-          >
-            Jobs
+            <i class="fas fa-plus"></i>
+            Weekly Timesheet
           </button>
         </div>
       </div>
@@ -154,11 +147,13 @@
 import { ref, onMounted, computed } from 'vue'
 import { useStore } from 'vuex'
 import axios from 'axios'
+import { useRouter } from 'vue-router'
 
 export default {
   name: 'DashboardView',
   setup() {
     const store = useStore()
+    const router = useRouter()
     const weekStart = ref(getWeekStart())
     const weekEnd = ref(getWeekEnd(weekStart.value))
     const hoursData = ref({ daily_hours: [] })
@@ -321,6 +316,10 @@ export default {
       return task.daily_hours.some(day => day.notes && day.notes.length > 0)
     }
 
+    const goToTimesheet = () => {
+      router.push('/timesheet')
+    }
+
     onMounted(() => {
       // Set initial week to current week's Monday
       weekStart.value = getWeekStart()
@@ -358,7 +357,8 @@ export default {
       toggleNotes,
       maxHours,
       yAxisTicks,
-      hasNotes
+      hasNotes,
+      goToTimesheet
     }
   }
 }
@@ -391,42 +391,61 @@ export default {
         gap: 1rem;
 
         button {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          padding: 0.75rem 1.25rem;
+          padding: 0.75rem 1.5rem;
           border-radius: 4px;
           font-weight: 500;
           cursor: pointer;
+          transition: all 0.2s;
 
-          &.active {
-            background-color: #2E7D32;
+          &.btn-primary {
+            background: #2E7D32;
             color: white;
             border: none;
 
             &:hover {
-              background-color: #1B5E20;
+              background: #1B5E20;
+            }
+
+            &.active {
+              background: #1B5E20;
             }
           }
-        }
 
-        .btn-primary {
-          background-color: white;
-          border: 1px solid #e0e0e0;
-          color: #666;
+          &.btn-configure {
+            background: white;
+            color: #666;
+            border: 1px solid #e0e0e0;
 
-          &:hover:not(.active) {
-            background-color: #f5f5f5;
+            &:hover {
+              background: #f5f5f5;
+            }
+
+            &.active {
+              background: #f5f5f5;
+              color: #333;
+            }
           }
-        }
 
-        .btn-configure {
-          background-color: white;
-          border: 1px solid #e0e0e0;
-          color: #666;
+          &.btn-timesheet {
+            background: #43A047;
+            color: white;
+            border: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            border-radius: 4px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
 
-          &:hover:not(.active) {
-            background-color: #f5f5f5;
+            i {
+              font-size: 0.875rem;
+            }
+
+            &:hover {
+              background: #2E7D32;
+            }
           }
         }
       }

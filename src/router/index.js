@@ -43,6 +43,20 @@ const routes = [
     meta: {
       activeNav: 'jobs'
     }
+  },
+  {
+    path: '/clients/:clientId',
+    name: 'ClientDetail',
+    component: () => import('../views/ClientDetailView.vue'),
+    meta: {
+      activeNav: 'clients'
+    }
+  },
+  {
+    path: '/timesheet',
+    name: 'timesheet',
+    component: () => import('../views/WeeklyTimesheetView.vue'),
+    meta: { requiresAuth: true }
   }
 ]
 
